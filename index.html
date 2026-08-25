@@ -682,6 +682,8 @@
         case "11": case "17": dataLen = 6; break;
         case "10": maxLen = 20; break;
         case "21": maxLen = 20; break;
+        case "30": maxLen = 20; break;
+        case "37": maxLen = 20; break;
         default:
           if (/^9[1-9]$/.test(ai)) { maxLen = 40; break; }
           // Неизвестный AI — пропускаем до |
@@ -703,6 +705,8 @@
         var val = s.substr(i, Math.min(endPos - i, maxLen));
         if (ai === "10") res.batch = val;
         else if (ai === "21") res.serial = val;
+        else if (ai === "30") res.manufacturer = val;
+        else if (ai === "37") res.manufacturer = val;
         else if (/^9[1-9]$/.test(ai)) res.extra.push({ ai: ai, value: val });
         i += val.length;
       }
@@ -812,6 +816,8 @@
     addHist({ gtin:data.gtin, serial:data.serial, raw:decodedText, ts:Date.now() });
     $("rGtin").textContent = data.gtin || "—";
     $("rSn").textContent = data.serial || "—";
+    $("rProdDate").textContent = data.prodDate ? fmtDate(data.prodDate) : "—";
+    $("rManuf").textContent = data.manufacturer || "—";
     var extraHtml = "";
     if(data.batch) extraHtml += '<div class="field"><div class="k">Партия (10)</div><div class="v">'+esc(data.batch)+'</div></div>';
     if(data.prodDate) extraHtml += '<div class="field"><div class="k">Дата выпуска (11)</div><div class="v">'+esc(fmtDate(data.prodDate))+'</div></div>';
