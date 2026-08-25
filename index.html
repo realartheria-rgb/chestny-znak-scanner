@@ -667,18 +667,50 @@
   function parseMarking(raw){
     var s = (raw||"").replace(/[\x1D\x1E]/g,"|").replace(/\]\d{2}/g,"|").replace(/<GS>/gi,"|").replace(/^\uFEFF/,"");
     var res = { raw:raw, gtin:null, serial:null, batch:null, prodDate:null, expDate:null, extra:[] };
-    function ai(code,len){ var m = s.match(new RegExp("\\|?"+code+"(\\d{"+len+"})")); return m?m[1]:null; }
-    function avar(code){ var m = s.match(new RegExp("\\|?"+code+"([^|]+)")); return m?m[1].trim():null; }
-    res.gtin = ai("01",14);
-    res.serial = avar("21");
-    res.batch = avar("10");
-    res.prodDate = ai("11",6);
-    res.expDate = ai("17",6);
-    var mx = s.match(/\|\?9([1-9])([^|]{1,40})/);
-    if(mx){ res.extra.push({ ai:"9"+mx[1], value:mx[2].trim() }); }
-    if(!res.gtin){
+    // Убираем начальные разделители
+    s = s.replace(/^\|+/, "");
+    var i = 0;
+    while (i < s.length) {
+      if (s[i] === '|') { i++; continue; }
+      var twoDig = s.substr(i, 2);
+      if (!/^\d{2}$/.test(twoDig)) { i++; continue; }
+      var ai = twoDig;
+      i += 2;
+      var dataLen = 0, maxLen = 40;
+      switch(ai) {
+        case "01": dataLen = 14; break;
+        case "11": case "17": dataLen = 6; break;
+        case "10": maxLen = 20; break;
+        case "21": maxLen = 20; break;
+        default:
+          if (/^9[1-9]$/.test(ai)) { maxLen = 40; break; }
+          // Неизвестный AI — пропускаем до |
+          var np = s.indexOf('|', i);
+          i = (np === -1) ? s.length : np;
+          continue;
+      }
+      if (dataLen > 0) {
+        var val = s.substr(i, dataLen);
+        if (val.length === dataLen) {
+          if (ai === "01") res.gtin = val;
+          else if (ai === "11") res.prodDate = val;
+          else if (ai === "17") res.expDate = val;
+        }
+        i += dataLen;
+      } else {
+        var endPos = s.indexOf('|', i);
+        if (endPos === -1) endPos = s.length;
+        var val = s.substr(i, Math.min(endPos - i, maxLen));
+        if (ai === "10") res.batch = val;
+        else if (ai === "21") res.serial = val;
+        else if (/^9[1-9]$/.test(ai)) res.extra.push({ ai: ai, value: val });
+        i += val.length;
+      }
+    }
+    // Fallback: если GTIN не нашли через AI, ищем 14 цифр подряд
+    if (!res.gtin) {
       var g = raw.replace(/\D/g,"").match(/(\d{14})/);
-      if(g) res.gtin = g[1];
+      if (g) res.gtin = g[1];
     }
     return res;
   }
